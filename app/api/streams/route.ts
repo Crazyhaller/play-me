@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prismaClient } from '../../lib/db'
 import { YT_REGEX } from '@/app/lib/utils'
@@ -8,7 +8,7 @@ const CreateStreamSchema = z.object({
   url: z.string(),
 })
 
-export async function POST(req: NextResponse) {
+export async function POST(req: NextRequest) {
   try {
     const data = CreateStreamSchema.parse(await req.json())
 
