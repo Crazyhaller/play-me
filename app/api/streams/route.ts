@@ -3,6 +3,9 @@ import { z } from 'zod'
 import { prismaClient } from '../../lib/db'
 import { YT_REGEX } from '@/app/lib/utils'
 
+// @ts-ignore
+import youtubesearchapi from 'youtube-search-api'
+
 const CreateStreamSchema = z.object({
   creatorId: z.string(),
   url: z.string(),
@@ -12,7 +15,8 @@ export async function POST(req: NextRequest) {
   try {
     const data = CreateStreamSchema.parse(await req.json())
 
-    const isYoutube = YT_REGEX.test(data.url)
+    const isYoutube = data.url.match(YT_REGEX)
+
     if (!isYoutube) {
       return NextResponse.json(
         {
@@ -23,16 +27,36 @@ export async function POST(req: NextRequest) {
     }
 
     const extractedId = data.url.split('?v=')[1]
+    const res = await youtubesearchapi.GetVideoDetails(extractedId)
+    const thumbnails = res.thumbnail.thumbnails
+    thumbnails.sort((a: { width: number }, b: { width: number }) =>
+      a.width < b.width ? -1 : 1
+    )
 
-    prismaClient.stream.create({
+    const stream = await prismaClient.stream.create({
       data: {
         userId: data.creatorId,
         url: data.url,
         extractedId,
         type: 'Youtube',
+        title: res.title ?? "WOOPS! Couldn't Fetch The Title",
+        smallImg:
+          thumbnails.length > 1
+            ? thumbnails[thumbnails.length - 2].url
+            : thumbnails[thumbnails.length - 1].url ??
+              'https://static.vecteezy.com/system/resources/thumbnails/022/007/572/small_2x/funny-cute-banana-character-design-generative-ai-photo.jpeg',
+        bigImg:
+          thumbnails[thumbnails.length - 1].url ??
+          'https://static.vecteezy.com/system/resources/thumbnails/022/007/572/small_2x/funny-cute-banana-character-design-generative-ai-photo.jpeg',
       },
     })
+
+    return NextResponse.json({
+      message: 'Stream added successfully',
+      id: stream.id,
+    })
   } catch (e) {
+    console.log(e)
     return NextResponse.json(
       {
         message: 'Error while adding the stream',
