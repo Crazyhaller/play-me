@@ -2,11 +2,13 @@ import { Button } from '@/components/ui/button'
 import { Users, Play, Headphones } from 'lucide-react'
 import Link from 'next/link'
 import { Navbar } from './components/Navbar'
+import { Redirect } from './components/Redirect'
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-900 text-gray-100">
       <Navbar />
+      <Redirect />
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-900 to-blue-900">
           <div className="container px-4 md:px-6">

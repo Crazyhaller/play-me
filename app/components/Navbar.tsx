@@ -6,20 +6,17 @@ import { signIn, signOut, useSession } from 'next-auth/react'
 export function Navbar() {
   const session = useSession()
   return (
-    <div className="flex justify-between px-20 pt-4">
-      <div className="text-lg font-bold flex flex-col justify-center text-white">
-        Play-Me
-      </div>
+    <div className="fixed top-0 left-0 right-0 flex justify-between items-center px-4 md:px-6 py-4 bg-gray-900 z-50">
+      <div className="text-lg font-bold text-white">Play-Me</div>
       <div>
-        {session.data?.user && (
+        {session.data?.user ? (
           <Button
             className="bg-purple-600 text-white hover:bg-purple-700"
             onClick={() => signOut()}
           >
             Logout
           </Button>
-        )}
-        {!session.data?.user && (
+        ) : (
           <Button
             className="bg-purple-600 text-white hover:bg-purple-700"
             onClick={() => signIn()}
