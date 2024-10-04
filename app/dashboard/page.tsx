@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { ChevronUp, ChevronDown, Play } from 'lucide-react'
+import { ChevronUp, ChevronDown, Play, Share2 } from 'lucide-react'
+import { toast, ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 const fetchVideoDetails = async (url: string) => {
   return {
@@ -53,7 +55,7 @@ const sampleSongs: Video[] = [
   },
 ]
 
-export default function Dashboard() {
+export default function Component() {
   const [inputUrl, setInputUrl] = useState('')
   const [previewVideo, setPreviewVideo] = useState<Video | null>(null)
   const [queue, setQueue] = useState<Video[]>(sampleSongs)
@@ -96,12 +98,44 @@ export default function Dashboard() {
     }
   }
 
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Song Voting Queue',
+      text: 'Join our song voting queue!',
+      url: window.location.href,
+    }
+
+    if (navigator.share && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData)
+        toast.success('Shared successfully!')
+      } catch (err) {
+        console.error('Error sharing:', err)
+        toast.error('Error sharing. Please try again.')
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        toast.success('Link copied to clipboard!')
+      } catch (err) {
+        console.error('Error copying to clipboard:', err)
+        toast.error('Error copying link. Please try again.')
+      }
+    }
+  }
+
   return (
     <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-900 to-blue-900 text-white">
       <div className="container mx-auto p-4 space-y-6">
-        <h1 className="text-3xl font-bold text-center mb-8">
-          Song Voting Queue
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Song Voting Queue</h1>
+          <Button
+            onClick={handleShare}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            <Share2 className="mr-2 h-4 w-4" /> Share
+          </Button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-2">
           <Input
@@ -137,6 +171,49 @@ export default function Dashboard() {
           </Card>
         )}
 
+        {/* Now Playing Section */}
+        <Card className="bg-white/10 border-white/20">
+          <CardContent className="p-4">
+            <h2 className="text-xl font-semibold mb-4">Now Playing</h2>
+            {currentVideo ? (
+              <div className="space-y-4">
+                <div className="aspect-video">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${currentVideo.id}`}
+                    title="YouTube video player"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={currentVideo.thumbnail}
+                    alt={currentVideo.title}
+                    className="w-24 h-18 object-cover"
+                  />
+                  <div>
+                    <h3 className="font-semibold text-white">
+                      {currentVideo.title}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p>No video currently playing</p>
+            )}
+            <Button
+              onClick={playNext}
+              disabled={queue.length === 0}
+              className="mt-4 bg-blue-600 hover:bg-blue-700"
+            >
+              <Play className="mr-2 h-4 w-4" /> Play Next
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Songs */}
         <div className="space-y-2">
           <h2 className="text-xl font-semibold">Upcoming Songs</h2>
           {queue.map((video, index) => (
@@ -182,48 +259,8 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
-
-        <Card className="mt-6 bg-white/10 border-white/20">
-          <CardContent className="p-4">
-            <h2 className="text-xl font-semibold mb-4">Now Playing</h2>
-            {currentVideo ? (
-              <div className="space-y-4">
-                <div className="aspect-video">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${currentVideo.id}`}
-                    title="YouTube video player"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <img
-                    src={currentVideo.thumbnail}
-                    alt={currentVideo.title}
-                    className="w-24 h-18 object-cover"
-                  />
-                  <div>
-                    <h3 className="font-semibold text-white">
-                      {currentVideo.title}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p>No video currently playing</p>
-            )}
-            <Button
-              onClick={playNext}
-              disabled={queue.length === 0}
-              className="mt-4 bg-blue-600 hover:bg-blue-700"
-            >
-              <Play className="mr-2 h-4 w-4" /> Play Next
-            </Button>
-          </CardContent>
-        </Card>
       </div>
+      <ToastContainer position="bottom-right" theme="dark" />
     </section>
   )
 }
