@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { prismaClient } from '../../lib/db'
 import { YT_REGEX } from '@/app/lib/utils'
 
-// @ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
 import youtubesearchapi from 'youtube-search-api'
 
 const CreateStreamSchema = z.object({
