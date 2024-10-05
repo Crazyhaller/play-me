@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ChevronUp, ChevronDown, Play, Share2 } from 'lucide-react'
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import axios from 'axios'
 
 const fetchVideoDetails = async (url: string) => {
   return {
@@ -23,6 +24,8 @@ interface Video {
   upvotes: number
   downvotes: number
 }
+
+const REFRESH_INTERVAL_MS = 10 * 1000
 
 const sampleSongs: Video[] = [
   {
@@ -60,6 +63,16 @@ export default function Component() {
   const [previewVideo, setPreviewVideo] = useState<Video | null>(null)
   const [queue, setQueue] = useState<Video[]>(sampleSongs)
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null)
+
+  async function refreshStreams() {
+    const res = await axios.get('/api/streams/my')
+    console.log(res)
+  }
+
+  useEffect(() => {
+    refreshStreams()
+    const interval = setInterval(() => {}, REFRESH_INTERVAL_MS)
+  }, [])
 
   useEffect(() => {
     if (inputUrl) {
