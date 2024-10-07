@@ -33,6 +33,11 @@ export async function GET(req: NextRequest) {
           upvotes: true,
         },
       },
+      upvotes: {
+        where: {
+          userId: user.id,
+        },
+      },
     },
   })
 
@@ -40,6 +45,7 @@ export async function GET(req: NextRequest) {
     streams: streams.map(({ _count, ...rest }) => ({
       ...rest,
       upvotes: _count.upvotes,
+      haveUpvoted: rest.upvotes.length ? true : false,
     })),
   })
 }

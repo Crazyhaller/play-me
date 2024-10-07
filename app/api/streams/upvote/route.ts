@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
         streamId: data.streamId,
       },
     })
+
+    return NextResponse.json({
+      message: 'Upvoted',
+    })
   } catch (error) {
     return NextResponse.json(
       {

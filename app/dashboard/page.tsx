@@ -7,66 +7,35 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ChevronUp, ChevronDown, Play, Share2 } from 'lucide-react'
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import axios from 'axios'
-
-const fetchVideoDetails = async (url: string) => {
-  return {
-    title: 'Mock Video Title',
-    thumbnail: '/placeholder.svg?height=90&width=120',
-    id: url.split('v=')[1],
-  }
-}
+import { Navbar } from '../components/Navbar'
 
 interface Video {
   id: string
+  type: string
+  url: string
+  extractedId: string
   title: string
-  thumbnail: string
+  smallImg: string
+  bigImg: string
+  active: boolean
+  userId: string
   upvotes: number
-  downvotes: number
+  haveUpvoted: boolean
 }
 
 const REFRESH_INTERVAL_MS = 10 * 1000
 
-const sampleSongs: Video[] = [
-  {
-    id: 'dQw4w9WgXcQ',
-    title: 'Rick Astley - Never Gonna Give You Up',
-    thumbnail: '/placeholder.svg?height=90&width=120',
-    upvotes: 20,
-    downvotes: 5,
-  },
-  {
-    id: 'y6120QOlsfU',
-    title: 'Darude - Sandstorm',
-    thumbnail: '/placeholder.svg?height=90&width=120',
-    upvotes: 15,
-    downvotes: 3,
-  },
-  {
-    id: 'L_jWHffIx5E',
-    title: 'Smash Mouth - All Star',
-    thumbnail: '/placeholder.svg?height=90&width=120',
-    upvotes: 12,
-    downvotes: 2,
-  },
-  {
-    id: '9bZkp7q19f0',
-    title: 'PSY - GANGNAM STYLE',
-    thumbnail: '/placeholder.svg?height=90&width=120',
-    upvotes: 10,
-    downvotes: 2,
-  },
-]
-
 export default function Component() {
   const [inputUrl, setInputUrl] = useState('')
-  const [previewVideo, setPreviewVideo] = useState<Video | null>(null)
-  const [queue, setQueue] = useState<Video[]>(sampleSongs)
+  const [queue, setQueue] = useState<Video[]>([])
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null)
 
   async function refreshStreams() {
-    const res = await axios.get('/api/streams/my')
-    console.log(res)
+    const res = await fetch('/api/streams/my', {
+      credentials: 'include',
+    })
+    const json = await res.json()
+    setQueue(json.streams)
   }
 
   useEffect(() => {
@@ -74,34 +43,36 @@ export default function Component() {
     const interval = setInterval(() => {}, REFRESH_INTERVAL_MS)
   }, [])
 
-  useEffect(() => {
-    if (inputUrl) {
-      fetchVideoDetails(inputUrl).then((details) =>
-        setPreviewVideo({ ...details, upvotes: 0, downvotes: 0 })
-      )
-    } else {
-      setPreviewVideo(null)
-    }
-  }, [inputUrl])
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (previewVideo) {
-      setQueue([...queue, previewVideo])
-      setInputUrl('')
-      setPreviewVideo(null)
+    const newVideo: Video = {
+      id: String(queue.length + 1),
+      title: `New Song ${queue.length + 1}`,
+      upvotes: 0,
     }
+    setQueue([...queue, newVideo])
+    setInputUrl('')
   }
 
-  const handleVote = (index: number, isUpvote: boolean) => {
-    const newQueue = [...queue]
-    if (isUpvote) {
-      newQueue[index].upvotes += 1
-    } else {
-      newQueue[index].downvotes += 1
-    }
-    newQueue.sort((a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes))
-    setQueue(newQueue)
+  const handleVote = (id: string, isUpvote: boolean) => {
+    setQueue(
+      queue
+        .map((video) =>
+          video.id === id
+            ? {
+                ...video,
+                upvotes: isUpvote ? video.upvotes + 1 : video.upvotes - 1,
+                haveUpvoted: !video.haveUpvoted,
+              }
+            : video
+        )
+        .sort((a, b) => b.upvotes - a.upvotes)
+    )
+
+    fetch(`/api/streams/${isUpvote ? 'upvote' : 'downvote'}`, {
+      method: 'POST',
+      body: JSON.stringify({ streamId: id }),
+    })
   }
 
   const playNext = () => {
@@ -111,169 +82,152 @@ export default function Component() {
     }
   }
 
-  const handleShare = async () => {
-    const shareData = {
-      title: 'Song Voting Queue',
-      text: 'Join our song voting queue!',
-      url: window.location.href,
-    }
+  const handleShare = () => {
+    const shareLink = window.location.href
+    navigator.clipboard.writeText(shareLink).then(
+      () => {
+        toast.success('Link copied to clipboard', {
+          position: 'top-right',
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        })
+      },
+      (err) => {
+        console.log(err)
 
-    if (navigator.share && navigator.canShare(shareData)) {
-      try {
-        await navigator.share(shareData)
-        toast.success('Shared successfully!')
-      } catch (err) {
-        console.error('Error sharing:', err)
-        toast.error('Error sharing. Please try again.')
+        toast.error('Failed to copy link to clipboard', {
+          position: 'top-right',
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        })
       }
-    } else {
-      try {
-        await navigator.clipboard.writeText(window.location.href)
-        toast.success('Link copied to clipboard!')
-      } catch (err) {
-        console.error('Error copying to clipboard:', err)
-        toast.error('Error copying link. Please try again.')
-      }
-    }
+    )
   }
 
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-r from-purple-900 to-blue-900 text-white">
-      <div className="container mx-auto p-4 space-y-6">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Song Voting Queue</h1>
+    <div className="flex flex-col min-h-screen bg-[rgb(18,10,10)] text-gray-200">
+      <Navbar />
+      <div className="max-w-4xl mx-auto p-4 space-y-6 w-full">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-white">Song Voting Queue</h1>
           <Button
             onClick={handleShare}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-purple-700 hover:bg-purple-900 text-white"
           >
-            <Share2 className="mr-2 h-4 w-4" /> Share
+            <Share2 className="mr-2 h-4 w-4" />
+            Share
           </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-2">
           <Input
             type="text"
-            placeholder="Enter YouTube URL"
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder-white/50"
+            placeholder="Enter a YouTube URL"
           />
           <Button
             type="submit"
-            disabled={!previewVideo}
-            className="w-full bg-purple-600 hover:bg-purple-700"
+            className="bg-purple-700 hover:bg-purple-900 text-white"
           >
-            Add to Queue
+            Add To Queue
           </Button>
         </form>
 
-        {previewVideo && (
-          <Card className="bg-white/10 border-white/20">
-            <CardContent className="flex items-center space-x-4 p-4">
+        {inputUrl && (
+          <Card className="bg-gray-900 border-gray-900">
+            <CardContent className="p-4">
               <img
-                src={previewVideo.thumbnail}
-                alt={previewVideo.title}
-                className="w-24 h-18 object-cover"
+                src="/placeholder.svg?height=200&width=320"
+                alt="Video Preview"
+                className="rounded-lg w-full h-48 object-cover"
               />
-              <div>
-                <h3 className="font-semibold text-white">
-                  {previewVideo.title}
-                </h3>
-              </div>
+              <p className="mt-2 text-center text-gray-400">Video Preview</p>
             </CardContent>
           </Card>
         )}
 
-        {/* Now Playing Section */}
-        <Card className="bg-white/10 border-white/20">
-          <CardContent className="p-4">
-            <h2 className="text-xl font-semibold mb-4">Now Playing</h2>
-            {currentVideo ? (
-              <div className="space-y-4">
-                <div className="aspect-video">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${currentVideo.id}`}
-                    title="YouTube video player"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-                <div className="flex items-center space-x-4">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-white">Now Playing</h2>
+          <Card className="bg-gray-900 border-gray-800">
+            <CardContent className="p-4">
+              {currentVideo ? (
+                <>
                   <img
-                    src={currentVideo.thumbnail}
-                    alt={currentVideo.title}
-                    className="w-24 h-18 object-cover"
+                    src="/placeholder.svg?height=360&width=640"
+                    alt="Current Video"
+                    className="w-full h-72 object-cover rounded"
                   />
-                  <div>
-                    <h3 className="font-semibold text-white">
-                      {currentVideo.title}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p>No video currently playing</p>
-            )}
-            <Button
-              onClick={playNext}
-              disabled={queue.length === 0}
-              className="mt-4 bg-blue-600 hover:bg-blue-700"
-            >
-              <Play className="mr-2 h-4 w-4" /> Play Next
-            </Button>
-          </CardContent>
-        </Card>
+                  <p className="mt-2 text-center font-semibold text-white">
+                    {currentVideo.title}
+                  </p>
+                </>
+              ) : (
+                <p className="text-center py-8 text-gray-400">
+                  No video playing
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Button
+            onClick={playNext}
+            className="w-full bg-purple-700 hover:bg-purple-900 text-white"
+          >
+            <Play className="mr-2 h-4 w-4" /> Play Next
+          </Button>
+        </div>
 
-        {/* Upcoming Songs */}
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Upcoming Songs</h2>
-          {queue.map((video, index) => (
-            <Card key={video.id} className="bg-white/10 border-white/20">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center space-x-4">
-                  <img
-                    src={video.thumbnail}
-                    alt={video.title}
-                    className="w-24 h-18 object-cover"
-                  />
-                  <div>
-                    <h3 className="font-semibold text-white">{video.title}</h3>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-white">Upcoming Songs</h2>
+          {queue.map((video) => {
+            ;<Card key={video.id} className="bg-gray-900 border-gray-800">
+              <CardContent className="p-4 flex items-center space-x-4">
+                <img
+                  src={video.smallImg}
+                  alt={`Thumnail for ${video.title}`}
+                  className="w-38 h-20 object-cover rounded"
+                />
+                <div className="flex-grow">
+                  <h3 className="font-semibold text-white">{video.title}</h3>
+                  <div className="flex items-center space-x-2 mt-2">
                     <Button
+                      variant="outline"
                       size="sm"
-                      onClick={() => handleVote(index, true)}
-                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() =>
+                        handleVote(video.id, video.haveUpvoted ? false : true)
+                      }
+                      className="flex items-center space-x-1 bg-gray-800 text-white border-gray-700 hover:bg-gray-700"
                     >
-                      <ChevronUp className="h-4 w-4" />
+                      {video.haveUpvoted ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4" />
+                      )}
+                      <span>{video.upvotes}</span>
                     </Button>
-                    <span className="text-sm font-medium min-w-[2ch] text-center">
-                      {video.upvotes}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <Button
-                      size="sm"
-                      onClick={() => handleVote(index, false)}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm font-medium min-w-[2ch] text-center">
-                      {video.downvotes}
-                    </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          })}
         </div>
       </div>
-      <ToastContainer position="bottom-right" theme="dark" />
-    </section>
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+      />
+    </div>
   )
 }
