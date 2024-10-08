@@ -8,6 +8,9 @@ import { ChevronUp, ChevronDown, Play, Share2 } from 'lucide-react'
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { Navbar } from '../components/Navbar'
+import LiteYouTubeEmbed from 'react-lite-youtube-embed'
+import 'react-lite-youtube-embed/dist/LiteYouTubeEmbed.css'
+import { YT_REGEX } from '../lib/utils'
 
 interface Video {
   id: string
@@ -29,6 +32,7 @@ export default function Component() {
   const [inputUrl, setInputUrl] = useState('')
   const [queue, setQueue] = useState<Video[]>([])
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null)
+  const [loading, setLoading] = useState(false)
 
   async function refreshStreams() {
     const res = await fetch('/api/streams/my', {
@@ -40,18 +44,24 @@ export default function Component() {
 
   useEffect(() => {
     refreshStreams()
-    const interval = setInterval(() => {}, REFRESH_INTERVAL_MS)
+    const interval = setInterval(() => {
+      refreshStreams()
+    }, REFRESH_INTERVAL_MS)
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const newVideo: Video = {
-      id: String(queue.length + 1),
-      title: `New Song ${queue.length + 1}`,
-      upvotes: 0,
-    }
-    setQueue([...queue, newVideo])
+    setLoading(true)
+    const res = await fetch('/api/streams/', {
+      method: 'POST',
+      body: JSON.stringify({
+        creatorId: '68c1f567-a1e1-433e-94a4-5fca07051434',
+        url: inputUrl,
+      }),
+    })
+    setQueue([...queue, await res.json()])
     setInputUrl('')
+    setLoading(false)
   }
 
   const handleVote = (id: string, isUpvote: boolean) => {
@@ -133,24 +143,25 @@ export default function Component() {
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
             placeholder="Enter a YouTube URL"
+            className="text-black"
           />
           <Button
             type="submit"
+            disabled={loading}
             className="bg-purple-700 hover:bg-purple-900 text-white"
           >
-            Add To Queue
+            {loading ? 'Loading...' : 'Add to Queue'}
           </Button>
         </form>
 
-        {inputUrl && (
+        {inputUrl && inputUrl.match(YT_REGEX) && !loading && (
           <Card className="bg-gray-900 border-gray-900">
             <CardContent className="p-4">
-              <img
-                src="/placeholder.svg?height=200&width=320"
-                alt="Video Preview"
-                className="rounded-lg w-full h-48 object-cover"
+              <LiteYouTubeEmbed
+                id={inputUrl.split('?v=')[1]}
+                title="YouTube video"
+                noCookie={true}
               />
-              <p className="mt-2 text-center text-gray-400">Video Preview</p>
             </CardContent>
           </Card>
         )}
@@ -187,8 +198,8 @@ export default function Component() {
 
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-white">Upcoming Songs</h2>
-          {queue.map((video) => {
-            ;<Card key={video.id} className="bg-gray-900 border-gray-800">
+          {queue.map((video) => (
+            <Card key={video.id} className="bg-gray-900 border-gray-800">
               <CardContent className="p-4 flex items-center space-x-4">
                 <img
                   src={video.smallImg}
@@ -217,7 +228,7 @@ export default function Component() {
                 </div>
               </CardContent>
             </Card>
-          })}
+          ))}
         </div>
       </div>
 
