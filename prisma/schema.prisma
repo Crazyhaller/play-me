@@ -33,6 +33,13 @@ model Stream {
   upvotes  Upvote[]
   userId   String
   user     User  @relation(fields: [userId], references: [id])
+  currentStream currentStream?
+}
+
+model currentStream {
+  userId String @id
+  streamId String?  @unique
+  stream Stream? @relation(fields: [streamId], references: [id])
 }
 
 model Upvote {
