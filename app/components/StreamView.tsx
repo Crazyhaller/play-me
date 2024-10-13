@@ -28,11 +28,18 @@ interface Video {
 
 const REFRESH_INTERVAL_MS = 10 * 1000
 
-export default function StreamView({ creatorId }: { creatorId: string }) {
+export default function StreamView({
+  creatorId,
+  playVideo = false,
+}: {
+  creatorId: string
+  playVideo: boolean
+}) {
   const [inputUrl, setInputUrl] = useState('')
   const [queue, setQueue] = useState<Video[]>([])
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null)
   const [loading, setLoading] = useState(false)
+  const [playNextLoader, setPlayNextLoader] = useState(false)
 
   async function refreshStreams() {
     const res = await fetch(`/api/streams/?creatorId=${creatorId}`, {
@@ -42,6 +49,13 @@ export default function StreamView({ creatorId }: { creatorId: string }) {
     setQueue(
       json.streams.sort((a: any, b: any) => (a.upvotes < b.upvotes ? 1 : -1))
     )
+
+    setCurrentVideo((video) => {
+      if (video?.id === json.activeStream?.stream?.id) {
+        return video
+      }
+      return json.activeStream.stream
+    })
   }
 
   useEffect(() => {
@@ -87,10 +101,20 @@ export default function StreamView({ creatorId }: { creatorId: string }) {
     })
   }
 
-  const playNext = () => {
+  const playNext = async () => {
     if (queue.length > 0) {
-      setCurrentVideo(queue[0])
-      setQueue(queue.slice(1))
+      try {
+        setPlayNextLoader(true)
+        const data = await fetch('/api/streams/next', {
+          method: 'GET',
+        })
+        const json = await data.json()
+        setCurrentVideo(json.stream)
+        setQueue((q) => q.filter((x) => x.id !== json.stream.id))
+      } catch (error) {
+        console.log(error)
+      }
+      setPlayNextLoader(false)
     }
   }
 
@@ -177,16 +201,29 @@ export default function StreamView({ creatorId }: { creatorId: string }) {
                 <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="p-4">
                     {currentVideo ? (
-                      <>
-                        <img
-                          src="/placeholder.svg?height=360&width=640"
-                          alt="Current Video"
-                          className="w-full h-72 object-cover rounded"
-                        />
-                        <p className="mt-2 text-center font-semibold text-white">
-                          {currentVideo.title}
-                        </p>
-                      </>
+                      <div>
+                        {playVideo ? (
+                          <>
+                            <iframe
+                              width={'100%'}
+                              height={300}
+                              src={`https://www.youtube.com/embed/${currentVideo.extractedId}?autoplay=1`}
+                              allow="autoplay"
+                            ></iframe>
+                          </>
+                        ) : (
+                          <>
+                            <img
+                              src={currentVideo.bigImg}
+                              alt="Current Video"
+                              className="w-full h-72 object-cover rounded"
+                            />
+                            <p className="mt-2 text-center font-semibold text-white">
+                              {currentVideo.title}
+                            </p>
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-center py-8 text-gray-400">
                         No video playing
@@ -194,17 +231,32 @@ export default function StreamView({ creatorId }: { creatorId: string }) {
                     )}
                   </CardContent>
                 </Card>
-                <Button
-                  onClick={playNext}
-                  className="w-full bg-purple-700 hover:bg-purple-900 text-white"
-                >
-                  <Play className="mr-2 h-4 w-4" /> Play Next
-                </Button>
+                {playVideo && (
+                  <Button
+                    disabled={playNextLoader}
+                    onClick={playNext}
+                    className="w-full bg-purple-700 hover:bg-purple-900 text-white"
+                  >
+                    <Play className="mr-2 h-4 w-4" />{' '}
+                    {playNextLoader ? 'Loading...' : 'Play Next'}
+                  </Button>
+                )}
               </div>
             </div>
 
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">Upcoming Songs</h2>
+              {queue.length === 0 && (
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="p-4 flex items-center space-x-4">
+                    <div className="flex-grow">
+                      <h3 className="font-semibold text-white">
+                        No songs in queue
+                      </h3>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               {queue.map((video) => (
                 <Card key={video.id} className="bg-gray-900 border-gray-800">
                   <CardContent className="p-4 flex items-center space-x-4">
