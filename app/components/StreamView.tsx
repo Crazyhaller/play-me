@@ -13,9 +13,11 @@ import 'react-toastify/dist/ReactToastify.css'
 import LiteYouTubeEmbed from 'react-lite-youtube-embed'
 import 'react-lite-youtube-embed/dist/LiteYouTubeEmbed.css'
 import { YT_REGEX } from '../lib/utils'
-
+import { useSession } from 'next-auth/react'
+import type { Session } from 'next-auth'
 //@ts-ignore
 import YouTubePlayer from 'youtube-player'
+import Image from 'next/image'
 
 interface Video {
   id: string
@@ -29,6 +31,15 @@ interface Video {
   userId: string
   upvotes: number
   haveUpvoted: boolean
+}
+
+interface CustomSession extends Session {
+  user?: {
+    id?: string
+    name?: string | null
+    email?: string | null
+    image?: string | null
+  }
 }
 
 const REFRESH_INTERVAL_MS = 10 * 1000
@@ -46,44 +57,106 @@ export default function StreamView({
   const [loading, setLoading] = useState(false)
   const [playNextLoader, setPlayNextLoader] = useState(false)
   const videoPlayerRef = useRef<HTMLDivElement>()
+  const { data: session } = useSession() as { data: CustomSession | null }
+  const [creatorUserId, setCreatorUserId] = useState<string | null>(null)
+  const [isCreator, setIsCreator] = useState(false)
 
   async function refreshStreams() {
-    const res = await fetch(`/api/streams/?creatorId=${creatorId}`, {
-      credentials: 'include',
-    })
-    const json = await res.json()
-    setQueue(
-      json.streams.sort((a: any, b: any) => (a.upvotes < b.upvotes ? 1 : -1))
-    )
-
-    setCurrentVideo((video) => {
-      if (video?.id === json.activeStream?.stream?.id) {
-        return video
+    try {
+      const res = await fetch(`/api/streams/?creatorId=${creatorId}`, {
+        credentials: 'include',
+      })
+      const json = await res.json()
+      if (json.streams && Array.isArray(json.streams)) {
+        setQueue(
+          json.streams.length > 0
+            ? json.streams.sort((a: any, b: any) => b.upvotes - a.upvotes)
+            : []
+        )
+      } else {
+        setQueue([])
       }
-      return json.activeStream.stream
-    })
+
+      setCurrentVideo((video) => {
+        if (video?.id === json.activeStream?.stream?.id) {
+          return video
+        }
+        return json.activeStream?.stream || null
+      })
+
+      // Set the creator's ID
+      setCreatorUserId(json.creatorUserId)
+      setIsCreator(json.isCreator)
+    } catch (error) {
+      console.error('Error refreshing streams:', error)
+      setQueue([])
+      setCurrentVideo(null)
+    }
   }
 
   useEffect(() => {
     refreshStreams()
-    const interval = setInterval(() => {
-      refreshStreams()
-    }, REFRESH_INTERVAL_MS)
-  }, [])
+    const interval = setInterval(refreshStreams, REFRESH_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [creatorId])
+
+  useEffect(() => {
+    if (!videoPlayerRef.current || !currentVideo) return
+
+    const player = YouTubePlayer(videoPlayerRef.current)
+    player.loadVideoById(currentVideo.extractedId)
+    player.playVideo()
+
+    const eventHandler = (event: { data: number }) => {
+      if (event.data === 0) {
+        playNext()
+      }
+    }
+    player.on('stateChange', eventHandler)
+
+    return () => {
+      player.destroy()
+    }
+  }, [currentVideo, videoPlayerRef])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!inputUrl.trim()) {
+      toast.error('YouTube Link Cannot Be Empty')
+      return
+    }
+    if (!inputUrl.match(YT_REGEX)) {
+      toast.error('Invalid YouTube URL Format')
+      return
+    }
     setLoading(true)
-    const res = await fetch('/api/streams/', {
-      method: 'POST',
-      body: JSON.stringify({
-        creatorId,
-        url: inputUrl,
-      }),
-    })
-    setQueue([...queue, await res.json()])
-    setInputUrl('')
-    setLoading(false)
+    try {
+      const res = await fetch('/api/streams/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          creatorId,
+          url: inputUrl,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.message || 'An Error Occurred')
+      }
+      setQueue([...queue, data])
+      setInputUrl('')
+      toast.success('Song Added To Queue')
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message)
+      } else {
+        toast.error('An Unexpected Error Occurred')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleVote = (id: string, isUpvote: boolean) => {
@@ -103,7 +176,9 @@ export default function StreamView({
 
     fetch(`/api/streams/${isUpvote ? 'upvote' : 'downvote'}`, {
       method: 'POST',
-      body: JSON.stringify({ streamId: id }),
+      body: JSON.stringify({
+        streamId: id,
+      }),
     })
   }
 
@@ -116,67 +191,47 @@ export default function StreamView({
         })
         const json = await data.json()
         setCurrentVideo(json.stream)
-        setQueue((q) => q.filter((x) => x.id !== json.stream.id))
-      } catch (error) {
-        console.log(error)
+        setQueue((q) => q.filter((x) => x.id !== json.stream?.id))
+      } catch (e) {
+        console.error('Error Playing Next Song:', e)
+      } finally {
+        setPlayNextLoader(false)
       }
-      setPlayNextLoader(false)
     }
   }
 
   const handleShare = () => {
-    const shareLink = `${window.location.hostname}/creator/${creatorId}`
-    navigator.clipboard.writeText(shareLink).then(
+    const shareableLink = `${window.location.origin}/creator/${creatorId}`
+    navigator.clipboard.writeText(shareableLink).then(
       () => {
-        toast.success('Link copied to clipboard', {
-          position: 'top-right',
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        })
+        toast.success('Link Copied To Clipboard!')
       },
       (err) => {
-        console.log(err)
-
-        toast.error('Failed to copy link to clipboard', {
-          position: 'top-right',
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        })
+        console.error('Could not copy text: ', err)
+        toast.error('Failed To Copy Link. Please Try Again.')
       }
     )
   }
 
-  useEffect(() => {
-    if (!videoPlayerRef.current || !currentVideo) {
-      return
-    }
-    const player = YouTubePlayer(videoPlayerRef.current)
-
-    // 'loadVideoById' is queued until the player is ready to receive API calls.
-    player.loadVideoById(currentVideo.extractedId)
-
-    // 'playVideo' is queue until the player is ready to received API calls and after 'loadVideoById' has been called.
-    player.playVideo()
-    function eventHandler(event: any) {
-      console.log(event)
-      console.log(event.data)
-      if (event.data === 0) {
-        playNext()
+  const removeSong = async (streamId: string) => {
+    try {
+      const res = await fetch('/api/streams/remove', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ streamId }),
+      })
+      if (res.ok) {
+        toast.success('Song Removed Successfully')
+        refreshStreams()
+      } else {
+        toast.error('Failed To Remove Song')
       }
+    } catch (error) {
+      toast.error('Failed To Remove Song')
     }
-    player.on('stateChange', eventHandler)
-    return () => {
-      player.destroy()
-    }
-  }, [currentVideo, videoPlayerRef])
+  }
 
   return (
     <>
@@ -236,16 +291,10 @@ export default function StreamView({
                           <>
                             {/* @ts-expect-error */}
                             <div ref={videoPlayerRef} className="w-full" />
-                            {/* <iframe
-                              width={'100%'}
-                              height={300}
-                              src={`https://www.youtube.com/embed/${currentVideo.extractedId}?autoplay=1`}
-                              allow="autoplay"
-                            ></iframe> */}
                           </>
                         ) : (
                           <>
-                            <img
+                            <Image
                               src={currentVideo.bigImg}
                               alt="Current Video"
                               className="w-full h-72 object-cover rounded"
@@ -292,7 +341,7 @@ export default function StreamView({
               {queue.map((video) => (
                 <Card key={video.id} className="bg-gray-900 border-gray-800">
                   <CardContent className="p-4 flex items-center space-x-4">
-                    <img
+                    <Image
                       src={video.smallImg}
                       alt={`Thumbnail for ${video.title}`}
                       className="w-38 h-20 object-cover rounded"
@@ -322,6 +371,16 @@ export default function StreamView({
                         </Button>
                       </div>
                     </div>
+                    {isCreator && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeSong(video.id)}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))}

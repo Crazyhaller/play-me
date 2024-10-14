@@ -15,7 +15,35 @@ const CreateStreamSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession()
+    const user = await prismaClient.user.findFirst({
+      where: {
+        email: session?.user?.email ?? '',
+      },
+    })
+    if (!user) {
+      return NextResponse.json(
+        {
+          message: 'Unauthenticated',
+        },
+        {
+          status: 403,
+        }
+      )
+    }
+
     const data = CreateStreamSchema.parse(await req.json())
+
+    if (!data.url.trim()) {
+      return NextResponse.json(
+        {
+          message: 'YouTube link cannot be empty',
+        },
+        {
+          status: 400,
+        }
+      )
+    }
 
     const isYoutube = data.url.match(YT_REGEX)
 
@@ -24,16 +52,92 @@ export async function POST(req: NextRequest) {
         {
           message: 'Invalid URL',
         },
-        { status: 411 }
+        { status: 400 }
       )
     }
 
     const extractedId = data.url.split('?v=')[1]
     const res = await youtubesearchapi.GetVideoDetails(extractedId)
+
+    // Check if the user is not the creator
+    if (user.id !== data.creatorId) {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000)
+      const recentStreams = await prismaClient.stream.findMany({
+        where: {
+          userId: data.creatorId,
+          createdAt: {
+            gte: tenMinutesAgo,
+          },
+        },
+      })
+      // Check for duplicate song in the last 10 minutes
+      const duplicateSong = recentStreams.find(
+        (stream) => stream.extractedId === extractedId
+      )
+      if (duplicateSong) {
+        return NextResponse.json(
+          {
+            message: 'This song was already added in the last 10 minutes',
+          },
+          {
+            status: 429,
+          }
+        )
+      }
+      // Rate limiting checks for non-creator users
+      const userStreams = recentStreams.filter(
+        (stream) => stream.userId === user.id
+      )
+      const streamsLastTwoMinutes = userStreams.filter(
+        (stream) => stream.createdAt >= twoMinutesAgo
+      )
+      if (streamsLastTwoMinutes.length >= 2) {
+        return NextResponse.json(
+          {
+            message:
+              'Rate limit exceeded: You can only add 2 songs per 2 minutes',
+          },
+          {
+            status: 429,
+          }
+        )
+      }
+      if (recentStreams.length >= 5) {
+        return NextResponse.json(
+          {
+            message:
+              'Rate limit exceeded: You can only add 5 songs per 10 minutes',
+          },
+          {
+            status: 429,
+          }
+        )
+      }
+    }
+
     const thumbnails = res.thumbnail.thumbnails
     thumbnails.sort((a: { width: number }, b: { width: number }) =>
       a.width < b.width ? -1 : 1
     )
+
+    const existingActiveStreams = await prismaClient.stream.count({
+      where: {
+        userId: data.creatorId,
+        played: false,
+      },
+    })
+
+    if (existingActiveStreams >= 30) {
+      return NextResponse.json(
+        {
+          message: 'Queue is full',
+        },
+        {
+          status: 429,
+        }
+      )
+    }
 
     const stream = await prismaClient.stream.create({
       data: {
@@ -64,7 +168,7 @@ export async function POST(req: NextRequest) {
       {
         message: 'Error while adding the stream',
       },
-      { status: 411 }
+      { status: 500 }
     )
   }
 }
@@ -129,6 +233,8 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
+  const isCreator = user.id === creatorId
+
   return NextResponse.json({
     streams: streams.map(({ _count, ...rest }) => ({
       ...rest,
@@ -136,5 +242,7 @@ export async function GET(req: NextRequest) {
       haveUpvoted: rest.upvotes.length ? true : false,
     })),
     activeStream,
+    isCreator,
+    creatorId,
   })
 }
