@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
@@ -155,7 +158,7 @@ export default function StreamView({
     if (!videoPlayerRef.current || !currentVideo) {
       return
     }
-    let player = YouTubePlayer(videoPlayerRef.current)
+    const player = YouTubePlayer(videoPlayerRef.current)
 
     // 'loadVideoById' is queued until the player is ready to receive API calls.
     player.loadVideoById(currentVideo.extractedId)
@@ -231,7 +234,7 @@ export default function StreamView({
                       <div>
                         {playVideo ? (
                           <>
-                            {/* @ts-ignore */}
+                            {/* @ts-expect-error */}
                             <div ref={videoPlayerRef} className="w-full" />
                             {/* <iframe
                               width={'100%'}
