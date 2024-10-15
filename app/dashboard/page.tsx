@@ -23,7 +23,11 @@ export default function Component() {
   }, [])
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-neon-blue text-2xl font-bold">
+        Loading...
+      </div>
+    )
   }
 
   return <StreamView creatorId={creatorId ?? ''} playVideo={true} />

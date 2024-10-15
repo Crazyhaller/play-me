@@ -18,6 +18,7 @@ import type { Session } from 'next-auth'
 //@ts-ignore
 import YouTubePlayer from 'youtube-player'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 interface Video {
   id: string
@@ -60,6 +61,14 @@ export default function StreamView({
   const { data: session } = useSession() as { data: CustomSession | null }
   const [creatorUserId, setCreatorUserId] = useState<string | null>(null)
   const [isCreator, setIsCreator] = useState(false)
+
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!session?.user) {
+      router.push('/')
+    }
+  }, [session])
 
   async function refreshStreams() {
     try {
@@ -235,17 +244,17 @@ export default function StreamView({
 
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-[rgb(18,10,10)] text-gray-200 mt-16">
-        <div className="container mx-auto p-4 space-y-6">
+      <div className="flex flex-col min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-gray-100">
+        <div className="container mx-auto p-4 space-y-6 mt-16">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-white">
+              <div className="flex flex-col md:flex-row justify-between items-center">
+                <h1 className="text-3xl font-bold text-white text-center md:text-left drop-shadow-lg">
                   Song Voting Queue
                 </h1>
                 <Button
                   onClick={handleShare}
-                  className="bg-purple-700 hover:bg-purple-900 text-white"
+                  className="mt-4 md:mt-0 bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-lg"
                 >
                   <Share2 className="mr-2 h-4 w-4" />
                   Share
@@ -258,19 +267,19 @@ export default function StreamView({
                   value={inputUrl}
                   onChange={(e) => setInputUrl(e.target.value)}
                   placeholder="Enter a YouTube URL"
-                  className="text-black"
+                  className="text-black w-full"
                 />
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="bg-purple-700 hover:bg-purple-900 text-white"
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-lg"
                 >
                   {loading ? 'Loading...' : 'Add to Queue'}
                 </Button>
               </form>
 
               {inputUrl && inputUrl.match(YT_REGEX) && !loading && (
-                <Card className="bg-gray-900 border-gray-900">
+                <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="p-4">
                     <LiteYouTubeEmbed
                       id={inputUrl.split('?v=')[1]}
@@ -282,7 +291,9 @@ export default function StreamView({
               )}
 
               <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-white">Now Playing</h2>
+                <h2 className="text-2xl font-bold text-white drop-shadow-lg">
+                  Now Playing
+                </h2>
                 <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="p-4">
                     {currentVideo ? (
@@ -298,8 +309,10 @@ export default function StreamView({
                               src={currentVideo.bigImg}
                               alt="Current Video"
                               className="w-full h-72 object-cover rounded"
+                              width={640}
+                              height={360}
                             />
-                            <p className="mt-2 text-center font-semibold text-white">
+                            <p className="mt-2 text-center font-semibold text-white drop-shadow-lg">
                               {currentVideo.title}
                             </p>
                           </>
@@ -316,7 +329,7 @@ export default function StreamView({
                   <Button
                     disabled={playNextLoader}
                     onClick={playNext}
-                    className="w-full bg-purple-700 hover:bg-purple-900 text-white"
+                    className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 shadow-lg"
                   >
                     <Play className="mr-2 h-4 w-4" />{' '}
                     {playNextLoader ? 'Loading...' : 'Play Next'}
@@ -326,12 +339,14 @@ export default function StreamView({
             </div>
 
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white">Upcoming Songs</h2>
+              <h2 className="text-2xl font-bold text-white drop-shadow-lg">
+                Upcoming Songs
+              </h2>
               {queue.length === 0 && (
                 <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="p-4 flex items-center space-x-4">
                     <div className="flex-grow">
-                      <h3 className="font-semibold text-white">
+                      <h3 className="font-semibold text-white drop-shadow-lg">
                         No songs in queue
                       </h3>
                     </div>
@@ -345,9 +360,11 @@ export default function StreamView({
                       src={video.smallImg}
                       alt={`Thumbnail for ${video.title}`}
                       className="w-38 h-20 object-cover rounded"
+                      width={100}
+                      height={100}
                     />
                     <div className="flex-grow">
-                      <h3 className="font-semibold text-white">
+                      <h3 className="font-semibold text-white drop-shadow-lg">
                         {video.title}
                       </h3>
                       <div className="flex items-center space-x-2 mt-2">
