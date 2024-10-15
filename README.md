@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Play-Me: A collaborative streaming platform
 
-## Getting Started
+This project is a collaborative music streaming platform built using Next.js, PostgreSQL, Tailwind CSS, Prisma, and Next Auth. It allows creators, such as streamers, to host streaming sessions, share links with fans, and allow them to vote on and add music/videos to the queue. The queue is dynamically reordered based on user votes, and the most voted song plays next.
 
-First, run the development server:
+# Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Start Streaming Sessions: Creators can initiate streaming sessions where they control the stream and share it with others.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- YouTube Integration: Videos/songs can be added to the queue directly from YouTube.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Collaborative Queue: Other users can add songs/videos to the queue once they join a session.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Voting System: Users can vote on songs in the queue. The queue is reordered, so the highest-voted song plays next.
 
-## Learn More
+- Real-time Updates: The queue and votes are updated in real-time to reflect user interactions.
 
-To learn more about Next.js, take a look at the following resources:
+- Session Sharing: Creators can share session links with fans or other users.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Authentication: Secure login using Next Auth.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Tech Stack
 
-## Deploy on Vercel
+- Frontend: Next.js, Tailwind CSS
+- Backend: Prisma, PostgreSQL, Next Auth
+- Real-time Features: WebSockets (Coming Soon!)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Usage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Sign up/Login: Users can sign up or log in through the app.
+2. Create a Session: Creators can start a new streaming session.
+3. Add to Queue: Creators and participants can add YouTube videos/songs to the queue.
+4. Vote on Songs: Users can vote on songs in the queue. The queue will automatically reorder based on the highest votes.
+5. Session Sharing: Share the session link with other users to let them participate in adding and voting on the songs.
