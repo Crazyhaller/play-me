@@ -1,8 +1,8 @@
-## Play-Me: A collaborative streaming platform
+# Play-Me: A collaborative streaming platform
 
 This project is a collaborative music streaming platform built using Next.js, PostgreSQL, Tailwind CSS, Prisma, and Next Auth. It allows creators, such as streamers, to host streaming sessions, share links with fans, and allow them to vote on and add music/videos to the queue. The queue is dynamically reordered based on user votes, and the most voted song plays next.
 
-# Features
+## Features
 
 - Start Streaming Sessions: Creators can initiate streaming sessions where they control the stream and share it with others.
 
@@ -18,13 +18,13 @@ This project is a collaborative music streaming platform built using Next.js, Po
 
 - Authentication: Secure login using Next Auth.
 
-# Tech Stack
+## Tech Stack
 
 - Frontend: Next.js, Tailwind CSS
 - Backend: Prisma, PostgreSQL, Next Auth
 - Real-time Features: WebSockets (Coming Soon!)
 
-# Usage
+## Usage
 
 1. Sign up/Login: Users can sign up or log in through the app.
 2. Create a Session: Creators can start a new streaming session.
