@@ -11,6 +11,8 @@ export default function Component() {
       try {
         const response = await fetch('/api/user')
         const data = await response.json()
+        console.log('User data:', data)
+        console.log('User id:', data.user?.id)
         setCreatorId(data.user?.id || null)
       } catch (e) {
         console.error('Error fetching user data:', e)
