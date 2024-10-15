@@ -56,9 +56,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const extractedId = data.url.split('?v=')[1]
-    const res = await youtubesearchapi.GetVideoDetails(extractedId)
-
     // Check if the user is not the creator
     if (user.id !== data.creatorId) {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
@@ -115,6 +112,9 @@ export async function POST(req: NextRequest) {
         )
       }
     }
+
+    const extractedId = data.url.split('?v=')[1]
+    const res = await youtubesearchapi.GetVideoDetails(extractedId)
 
     const thumbnails = res.thumbnail.thumbnails
     thumbnails.sort((a: { width: number }, b: { width: number }) =>

@@ -30,5 +30,5 @@ export default function Component() {
     )
   }
 
-  return <StreamView creatorId={creatorId ?? ''} playVideo={true} />
+  return <StreamView creatorId={creatorId!} playVideo={true} />
 }
