@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import StreamView from '../components/StreamView'
+import axios from 'axios'
 
 export default function Component() {
   const [creatorId, setCreatorId] = useState<string | null>(null)
@@ -9,8 +10,8 @@ export default function Component() {
   useEffect(() => {
     async function fetchUserData() {
       try {
-        const response = await fetch('/api/user')
-        const data = await response.json()
+        const response = await axios.get('/api/user')
+        const data = response.data
         console.log('User data:', data)
         console.log('User id:', data.user?.id)
         setCreatorId(data.user?.id || null)
